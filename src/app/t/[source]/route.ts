@@ -4,5 +4,5 @@ export async function GET(
   request: Request,
   { params }: { params: { source: string } }
 ) {
-  return trackClick(params.source, request, "go")
+  return trackClick(params.source, request, "hidden")
 }

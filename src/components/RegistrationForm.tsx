@@ -7,32 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Loader2, CheckCircle } from "lucide-react"
-
-function getSource(): string | null {
-  if (typeof window === "undefined") return null
-  const params = new URLSearchParams(window.location.search)
-  const fromUrl = params.get("source")
-  if (fromUrl) {
-    localStorage.setItem("traffic_source", fromUrl)
-    return fromUrl
-  }
-  return localStorage.getItem("traffic_source")
-}
-
-function getReferralCode(): string | null {
-  if (typeof window === "undefined") return null
-  const params = new URLSearchParams(window.location.search)
-  return params.get("ref")
-}
-
-function generateSessionId(): string {
-  let sid = localStorage.getItem("session_id")
-  if (!sid) {
-    sid = "sess_" + Math.random().toString(36).substring(2, 15)
-    localStorage.setItem("session_id", sid)
-  }
-  return sid
-}
+import { getSource, clearSource, getReferralCode, generateSessionId } from "@/lib/sourceAttribution"
 
 export function RegistrationForm() {
   const router = useRouter()
@@ -100,7 +75,7 @@ export function RegistrationForm() {
       }
 
       setSuccess(true)
-      localStorage.removeItem("traffic_source")
+      clearSource()
       localStorage.removeItem("session_id")
       setTimeout(() => {
         router.push(`/success?name=${encodeURIComponent(formData.fullName)}&ref=${data.registration.id}`)

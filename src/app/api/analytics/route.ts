@@ -18,6 +18,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const startDate = searchParams.get("start")
     const endDate = searchParams.get("end")
+    const clickType = searchParams.get("type") // "go", "hidden", or null (all)
 
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
 
@@ -30,8 +31,12 @@ export async function GET(request: Request) {
         }
       : undefined
 
+    const clickFilter = clickType ? { ...(dateFilter || {}), type: clickType } : dateFilter
+
     const [
       totalClicks,
+      visibleClicks,
+      hiddenClicks,
       totalRegistrations,
       totalReferrals,
       liveUsers,
@@ -42,9 +47,9 @@ export async function GET(request: Request) {
       topReferrers,
       funnelData,
     ] = await Promise.all([
-      dateFilter
-        ? prisma.click.count({ where: dateFilter })
-        : prisma.click.count(),
+      clickFilter ? prisma.click.count({ where: clickFilter }) : prisma.click.count(),
+      prisma.click.count({ where: { type: "go" } }),
+      prisma.click.count({ where: { type: "hidden" } }),
       dateFilter
         ? prisma.registration.count({ where: dateFilter })
         : prisma.registration.count(),
@@ -52,8 +57,17 @@ export async function GET(request: Request) {
         ? prisma.referral.count({ where: dateFilter })
         : prisma.referral.count(),
       prisma.liveUser.count({ where: { lastSeen: { gte: fiveMinutesAgo } } }),
-      prisma.click.groupBy({ by: ["source"], _count: true, orderBy: { _count: { source: "desc" } } }),
-      prisma.registration.groupBy({ by: ["source"], _count: true, orderBy: { _count: { source: "desc" } } }),
+      prisma.click.groupBy({
+        by: ["source"],
+        _count: true,
+        orderBy: { _count: { source: "desc" } },
+        ...(clickFilter ? { where: clickFilter } : {}),
+      }),
+      prisma.registration.groupBy({
+        by: ["source"],
+        _count: true,
+        orderBy: { _count: { source: "desc" } },
+      }),
       prisma.$queryRaw`
         (SELECT 'click' as type, source, "createdAt" FROM clicks ORDER BY "createdAt" DESC LIMIT 20)
         UNION ALL
@@ -107,6 +121,8 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       totalClicks,
+      visibleClicks,
+      hiddenClicks,
       totalRegistrations,
       totalReferrals,
       conversionRate,

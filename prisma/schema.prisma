@@ -10,9 +10,12 @@ datasource db {
 model Click {
   id        String   @id @default(cuid())
   source    String
+  type      String   @default("go")
   userAgent String?
   ipAddress String?
   createdAt DateTime @default(now())
+  @@index([source])
+  @@index([createdAt])
   @@map("clicks")
 }
 

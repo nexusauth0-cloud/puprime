@@ -117,8 +117,9 @@ export async function POST(request: Request) {
     const zoomLink = process.env.NEXT_PUBLIC_ZOOM_LINK
     if (!zoomLink) throw new Error("NEXT_PUBLIC_ZOOM_LINK environment variable is required")
     const referralLink = `${siteUrl}/?ref=${registration.id}`
+    const sourceLabel = cleanedSource || "direct"
     const whatsappMsg = encodeURIComponent(
-      `Hi ${registration.fullName}, you're registered for the Market Education Session from ${cleanedSource || "direct"} traffic.\n\nHere is your Zoom link: ${zoomLink}\n\nYour referral link (share to earn rewards): ${referralLink}`
+      `Hi ${registration.fullName}, thanks for registering 🎉\n\nYou joined via: ${sourceLabel}\n\nHere is your Zoom link: ${zoomLink}\n\nShare your referral link: ${referralLink}`
     )
 
     return NextResponse.json(
