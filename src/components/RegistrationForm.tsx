@@ -19,12 +19,28 @@ function getSource(): string | null {
   return localStorage.getItem("traffic_source")
 }
 
+function getReferralCode(): string | null {
+  if (typeof window === "undefined") return null
+  const params = new URLSearchParams(window.location.search)
+  return params.get("ref")
+}
+
+function generateSessionId(): string {
+  let sid = localStorage.getItem("session_id")
+  if (!sid) {
+    sid = "sess_" + Math.random().toString(36).substring(2, 15)
+    localStorage.setItem("session_id", sid)
+  }
+  return sid
+}
+
 export function RegistrationForm() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
   const [source] = useState(getSource)
+  const [refCode] = useState(getReferralCode)
   const [formData, setFormData] = useState({
     fullName: "",
     whatsappNumber: "",
@@ -39,6 +55,23 @@ export function RegistrationForm() {
     }
   }, [source])
 
+  useEffect(() => {
+    const sid = generateSessionId()
+    const interval = setInterval(() => {
+      fetch("/api/live-users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: sid, source }),
+      }).catch(() => {})
+    }, 60000)
+    fetch("/api/live-users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: sid, source }),
+    }).catch(() => {})
+    return () => clearInterval(interval)
+  }, [source])
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setLoading(true)
@@ -48,7 +81,7 @@ export function RegistrationForm() {
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, source }),
+        body: JSON.stringify({ ...formData, source, referredBy: refCode }),
       })
 
       const data = await res.json()
@@ -61,8 +94,9 @@ export function RegistrationForm() {
 
       setSuccess(true)
       localStorage.removeItem("traffic_source")
+      localStorage.removeItem("session_id")
       setTimeout(() => {
-        router.push(`/success?name=${encodeURIComponent(formData.fullName)}`)
+        router.push(`/success?name=${encodeURIComponent(formData.fullName)}&ref=${data.registration.id}`)
       }, 1500)
     } catch {
       setError("Network error. Please try again.")
@@ -121,6 +155,12 @@ export function RegistrationForm() {
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             />
           </div>
+
+          {refCode && (
+            <div className="p-3 rounded-lg bg-blue-600/10 border border-blue-600/20 text-blue-400 text-sm">
+              Referred by a friend 🎉
+            </div>
+          )}
 
           {error && (
             <div className="p-3 rounded-lg bg-red-600/10 border border-red-600/20 text-red-400 text-sm">

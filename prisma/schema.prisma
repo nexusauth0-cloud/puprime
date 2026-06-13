@@ -22,6 +22,24 @@ model Registration {
   whatsappNumber  String   @unique
   email           String?
   source          String?
+  referredBy      String?
   createdAt       DateTime @default(now())
   @@map("registrations")
+}
+
+model Referral {
+  id         String   @id @default(cuid())
+  referrerId String
+  referredId String
+  source     String?
+  createdAt  DateTime @default(now())
+  @@map("referrals")
+}
+
+model LiveUser {
+  id        String   @id @default(cuid())
+  sessionId String   @unique
+  source    String?
+  lastSeen  DateTime @updatedAt
+  @@map("live_users")
 }

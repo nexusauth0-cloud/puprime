@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { RegistrationForm } from "@/components/RegistrationForm"
 import { CountdownTimer } from "@/components/CountdownTimer"
+import { ReferralNotice } from "@/components/ReferralNotice"
 import {
   Users,
   Zap,
@@ -259,6 +260,7 @@ export default function LandingPage() {
               Fill in the form below to secure your spot. Zoom link will be sent to your WhatsApp.
             </p>
           </div>
+          <ReferralNotice />
           <RegistrationForm />
         </div>
       </section>

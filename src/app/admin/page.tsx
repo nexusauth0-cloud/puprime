@@ -23,6 +23,7 @@ interface Registration {
   whatsappNumber: string
   email: string | null
   source: string | null
+  referredBy: string | null
   createdAt: string
 }
 
@@ -233,6 +234,7 @@ function AdminDashboard() {
                       <th className="text-left py-3 px-2 text-zinc-400 font-medium">WhatsApp</th>
                       <th className="text-left py-3 px-2 text-zinc-400 font-medium">Email</th>
                       <th className="text-left py-3 px-2 text-zinc-400 font-medium">Source</th>
+                      <th className="text-left py-3 px-2 text-zinc-400 font-medium">Referred By</th>
                       <th className="text-left py-3 px-2 text-zinc-400 font-medium">Date</th>
                     </tr>
                   </thead>
@@ -251,6 +253,13 @@ function AdminDashboard() {
                         <td className="py-3 px-2">
                           {reg.source ? (
                             <Badge variant="secondary">{reg.source}</Badge>
+                          ) : (
+                            <span className="text-zinc-600">—</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-2 text-zinc-400">
+                          {reg.referredBy ? (
+                            <Badge variant="outline">referred</Badge>
                           ) : (
                             <span className="text-zinc-600">—</span>
                           )}
