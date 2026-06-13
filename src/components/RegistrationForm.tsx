@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, FormEvent } from "react"
+import { useState, FormEvent, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,16 +8,36 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Loader2, CheckCircle } from "lucide-react"
 
+function getSource(): string | null {
+  if (typeof window === "undefined") return null
+  const params = new URLSearchParams(window.location.search)
+  const fromUrl = params.get("source")
+  if (fromUrl) {
+    localStorage.setItem("traffic_source", fromUrl)
+    return fromUrl
+  }
+  return localStorage.getItem("traffic_source")
+}
+
 export function RegistrationForm() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
+  const [source] = useState(getSource)
   const [formData, setFormData] = useState({
     fullName: "",
     whatsappNumber: "",
     email: "",
   })
+
+  useEffect(() => {
+    if (source && typeof window !== "undefined") {
+      const url = new URL(window.location.href)
+      url.searchParams.delete("source")
+      window.history.replaceState({}, "", url.toString())
+    }
+  }, [source])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -28,7 +48,7 @@ export function RegistrationForm() {
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, source }),
       })
 
       const data = await res.json()
@@ -40,6 +60,7 @@ export function RegistrationForm() {
       }
 
       setSuccess(true)
+      localStorage.removeItem("traffic_source")
       setTimeout(() => {
         router.push(`/success?name=${encodeURIComponent(formData.fullName)}`)
       }, 1500)

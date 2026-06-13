@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 
 export async function POST(request: Request) {
   try {
-    const { fullName, whatsappNumber, email } = await request.json()
+    const { fullName, whatsappNumber, email, source } = await request.json()
 
     if (!fullName || !whatsappNumber) {
       return NextResponse.json(
@@ -38,13 +38,24 @@ export async function POST(request: Request) {
       )
     }
 
+    const cleanedSource = source
+      ? source.toLowerCase().replace(/[^a-z0-9_-]/g, "")
+      : null
+
     const registration = await prisma.registration.create({
       data: {
         fullName: fullName.trim(),
         whatsappNumber: phoneClean,
         email: email?.trim() || null,
+        source: cleanedSource || null,
       },
     })
+
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://market-edu-a302.onrender.com"
+    const zoomLink = process.env.NEXT_PUBLIC_ZOOM_LINK || "https://zoom.us/j/example"
+    const whatsappMsg = encodeURIComponent(
+      `Hi ${registration.fullName}, you're registered for the Market Education Session from ${cleanedSource || "direct"} traffic. Here is your Zoom link: ${zoomLink}`
+    )
 
     return NextResponse.json(
       {
@@ -52,7 +63,9 @@ export async function POST(request: Request) {
         registration: {
           id: registration.id,
           fullName: registration.fullName,
+          source: registration.source,
         },
+        whatsappLink: `https://wa.me/${phoneClean}?text=${whatsappMsg}`,
       },
       { status: 201 }
     )

@@ -14,6 +14,7 @@ import {
   Search,
   Loader2,
   CalendarDays,
+  BarChart3,
 } from "lucide-react"
 
 interface Registration {
@@ -21,6 +22,7 @@ interface Registration {
   fullName: string
   whatsappNumber: string
   email: string | null
+  source: string | null
   createdAt: string
 }
 
@@ -57,11 +59,12 @@ function AdminDashboard() {
   }
 
   function handleExportCSV() {
-    const headers = ["Full Name", "WhatsApp Number", "Email", "Registered At"]
+    const headers = ["Full Name", "WhatsApp Number", "Email", "Source", "Registered At"]
     const rows = filteredRegistrations.map((r) => [
       r.fullName,
       r.whatsappNumber,
       r.email || "",
+      r.source || "",
       new Date(r.createdAt).toLocaleDateString(),
     ])
 
@@ -106,7 +109,13 @@ function AdminDashboard() {
             <Users className="w-5 h-5 text-blue-400" />
             <span className="text-lg font-semibold text-white">Admin Dashboard</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" asChild>
+              <a href="/admin/analytics">
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Analytics
+              </a>
+            </Button>
             <Badge variant="secondary" className="text-sm px-3 py-1">
               <Users className="w-3.5 h-3.5 mr-1.5" />
               {registrations.length} total
@@ -223,6 +232,7 @@ function AdminDashboard() {
                       <th className="text-left py-3 px-2 text-zinc-400 font-medium">Name</th>
                       <th className="text-left py-3 px-2 text-zinc-400 font-medium">WhatsApp</th>
                       <th className="text-left py-3 px-2 text-zinc-400 font-medium">Email</th>
+                      <th className="text-left py-3 px-2 text-zinc-400 font-medium">Source</th>
                       <th className="text-left py-3 px-2 text-zinc-400 font-medium">Date</th>
                     </tr>
                   </thead>
@@ -237,6 +247,13 @@ function AdminDashboard() {
                         <td className="py-3 px-2 text-zinc-300">{reg.whatsappNumber}</td>
                         <td className="py-3 px-2 text-zinc-400">
                           {reg.email || <span className="text-zinc-600">—</span>}
+                        </td>
+                        <td className="py-3 px-2">
+                          {reg.source ? (
+                            <Badge variant="secondary">{reg.source}</Badge>
+                          ) : (
+                            <span className="text-zinc-600">—</span>
+                          )}
                         </td>
                         <td className="py-3 px-2 text-zinc-400">
                           {new Date(reg.createdAt).toLocaleDateString("en-US", {

@@ -7,11 +7,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Click {
+  id        String   @id @default(cuid())
+  source    String
+  userAgent String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+  @@map("clicks")
+}
+
 model Registration {
   id              String   @id @default(cuid())
   fullName        String
   whatsappNumber  String   @unique
   email           String?
+  source          String?
   createdAt       DateTime @default(now())
   @@map("registrations")
 }

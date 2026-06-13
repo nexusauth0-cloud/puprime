@@ -17,8 +17,9 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 
-const WHATSAPP_LINK = process.env.NEXT_PUBLIC_WHATSAPP_LINK || "https://chat.whatsapp.com/example"
-const SHARE_LINK = process.env.NEXT_PUBLIC_SITE_URL || "https://marketedu.com"
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://market-edu-a302.onrender.com"
+const WHATSAPP_GROUP = process.env.NEXT_PUBLIC_WHATSAPP_LINK || "https://chat.whatsapp.com/example"
+const SHARE_LINK = SITE_URL
 
 const stats = [
   { value: "1,000+", label: "Registered", icon: Users },
@@ -79,7 +80,7 @@ export default function LandingPage() {
               <a href="#register">Register</a>
             </Button>
             <Button size="sm" asChild>
-              <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer">
+              <a href={`${SITE_URL}/r/whatsapp`} target="_blank" rel="noopener noreferrer">
                 Join WhatsApp
               </a>
             </Button>
@@ -112,7 +113,7 @@ export default function LandingPage() {
               </a>
             </Button>
             <Button size="xl" variant="outline" className="gap-2" asChild>
-              <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer">
+              <a href={`${SITE_URL}/r/whatsapp`} target="_blank" rel="noopener noreferrer">
                 Join WhatsApp Group
               </a>
             </Button>
@@ -267,7 +268,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <span className="text-sm text-zinc-500">© 2026 MarketEdu. All rights reserved.</span>
           <div className="flex items-center gap-6">
-            <Link href={WHATSAPP_LINK} className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">
+            <Link href={`${SITE_URL}/r/whatsapp`} className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">
               WhatsApp Group
             </Link>
             <Link href="/admin" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">
