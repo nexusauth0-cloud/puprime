@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useEffect, FormEvent } from "react"
+import { useState, useEffect, FormEvent, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { toast } from "@/hooks/use-toast"
 import {
   Users,
   Download,
@@ -15,7 +16,11 @@ import {
   Loader2,
   CalendarDays,
   BarChart3,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 interface Registration {
   id: string
@@ -27,28 +32,65 @@ interface Registration {
   createdAt: string
 }
 
+const PAGE_SIZE = 50
+
+function Skeleton({ className }: { className?: string }) {
+  return (
+    <div className={cn("animate-pulse rounded-md bg-zinc-800/50", className)} />
+  )
+}
+
+function SkeletonCard() {
+  return (
+    <Card>
+      <CardContent className="p-4 md:p-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-8 w-16" />
+          </div>
+          <Skeleton className="h-10 w-10 rounded-lg" />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function escapeCSV(value: string): string {
+  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+    return `"${value.replace(/"/g, '""')}"`
+  }
+  return value
+}
+
 function AdminDashboard() {
   const [registrations, setRegistrations] = useState<Registration[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
   const [dateFilter, setDateFilter] = useState("")
+  const [page, setPage] = useState(1)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     fetchRegistrations()
   }, [])
 
   async function fetchRegistrations() {
+    setLoading(true)
+    setError("")
     try {
       const token = localStorage.getItem("admin_token")
       const res = await fetch("/api/registrations", {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (res.ok) {
-        const data = await res.json()
-        setRegistrations(data.registrations)
+        setRegistrations(await res.json().then((d) => d.registrations))
+      } else {
+        setError("Failed to load registrations")
       }
-    } catch (err) {
-      console.error(err)
+    } catch {
+      setError("Network error. Check your connection.")
     } finally {
       setLoading(false)
     }
@@ -62,41 +104,116 @@ function AdminDashboard() {
   function handleExportCSV() {
     const headers = ["Full Name", "WhatsApp Number", "Email", "Source", "Registered At"]
     const rows = filteredRegistrations.map((r) => [
-      r.fullName,
-      r.whatsappNumber,
-      r.email || "",
-      r.source || "",
-      new Date(r.createdAt).toLocaleDateString(),
+      escapeCSV(r.fullName),
+      escapeCSV(r.whatsappNumber),
+      escapeCSV(r.email || ""),
+      escapeCSV(r.source || ""),
+      escapeCSV(new Date(r.createdAt).toLocaleDateString()),
     ])
 
-    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n")
-    const blob = new Blob([csv], { type: "text/csv" })
+    const csv = [headers.map(escapeCSV).join(","), ...rows.map((r) => r.join(","))].join("\n")
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
     a.download = `registrations-${new Date().toISOString().split("T")[0]}.csv`
     a.click()
     URL.revokeObjectURL(url)
+    toast({ title: "CSV exported", description: `${rows.length} registrations downloaded.` })
   }
 
-  const filteredRegistrations = registrations.filter((r) => {
-    const matchesSearch =
-      r.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.whatsappNumber.includes(searchTerm) ||
-      (r.email && r.email.toLowerCase().includes(searchTerm.toLowerCase()))
-
-    if (dateFilter) {
-      const regDate = new Date(r.createdAt).toISOString().split("T")[0]
-      return matchesSearch && regDate === dateFilter
+  function toggleSelectAll() {
+    if (selected.size === currentPage.length) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(currentPage.map((r) => r.id)))
     }
+  }
 
-    return matchesSearch
-  })
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const filteredRegistrations = useMemo(
+    () =>
+      registrations.filter((r) => {
+        const matchesSearch =
+          r.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          r.whatsappNumber.includes(searchTerm) ||
+          (r.email && r.email.toLowerCase().includes(searchTerm.toLowerCase()))
+
+        if (dateFilter) {
+          const regDate = new Date(r.createdAt).toISOString().split("T")[0]
+          return matchesSearch && regDate === dateFilter
+        }
+
+        return matchesSearch
+      }),
+    [registrations, searchTerm, dateFilter]
+  )
+
+  const totalPages = Math.max(1, Math.ceil(filteredRegistrations.length / PAGE_SIZE))
+  const currentPage = filteredRegistrations.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  useEffect(() => {
+    setPage(1)
+  }, [searchTerm, dateFilter])
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0B1220] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
+      <div className="min-h-screen bg-[#0B1220]">
+        <nav className="border-b border-zinc-800/50 bg-zinc-900/30 backdrop-blur-xl">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <Skeleton className="h-6 w-40" />
+            <div className="flex gap-3">
+              <Skeleton className="h-9 w-24" />
+              <Skeleton className="h-9 w-20" />
+            </div>
+          </div>
+        </nav>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => <SkeletonCard key={i} />)}
+          </div>
+          <Card>
+            <CardContent className="p-6">
+              <Skeleton className="h-10 w-full mb-4" />
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex gap-4 py-3 border-b border-zinc-800/50">
+                  <Skeleton className="h-4 w-8" />
+                  <Skeleton className="h-4 flex-1" />
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#0B1220] flex items-center justify-center p-4">
+        <Card className="max-w-sm w-full">
+          <CardContent className="p-8 text-center space-y-4">
+            <div className="mx-auto w-12 h-12 rounded-full bg-red-600/10 flex items-center justify-center">
+              <Users className="w-6 h-6 text-red-400" />
+            </div>
+            <p className="text-zinc-300">{error}</p>
+            <Button onClick={fetchRegistrations} className="gap-2">
+              <RefreshCw className="w-4 h-4" />
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -191,6 +308,7 @@ function AdminDashboard() {
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10 w-full sm:w-72"
+                    aria-label="Search registrations"
                   />
                 </div>
                 <div className="relative">
@@ -200,84 +318,145 @@ function AdminDashboard() {
                     value={dateFilter}
                     onChange={(e) => setDateFilter(e.target.value)}
                     className="pl-10 w-full sm:w-44"
+                    aria-label="Filter by date"
                   />
                 </div>
               </div>
-              <Button onClick={handleExportCSV} className="gap-2 shrink-0">
-                <Download className="w-4 h-4" />
-                Export CSV
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={() => fetchRegistrations()} variant="outline" size="icon" aria-label="Refresh data">
+                  <RefreshCw className="w-4 h-4" />
+                </Button>
+                <Button onClick={handleExportCSV} className="gap-2 shrink-0">
+                  <Download className="w-4 h-4" />
+                  Export CSV
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Table */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-white">
-              Registrations ({filteredRegistrations.length})
-            </CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-white">Registrations ({filteredRegistrations.length})</CardTitle>
+            {selected.size > 0 && (
+              <Badge variant="secondary">{selected.size} selected</Badge>
+            )}
           </CardHeader>
           <CardContent>
+            <div aria-live="polite" aria-atomic="true" className="sr-only">
+              {filteredRegistrations.length} registrations
+              {searchTerm && ` matching "${searchTerm}"`}
+            </div>
             {filteredRegistrations.length === 0 ? (
               <div className="text-center py-12">
                 <Users className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
                 <p className="text-zinc-400">No registrations found</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-zinc-800">
-                      <th className="text-left py-3 px-2 text-zinc-400 font-medium">#</th>
-                      <th className="text-left py-3 px-2 text-zinc-400 font-medium">Name</th>
-                      <th className="text-left py-3 px-2 text-zinc-400 font-medium">WhatsApp</th>
-                      <th className="text-left py-3 px-2 text-zinc-400 font-medium">Email</th>
-                      <th className="text-left py-3 px-2 text-zinc-400 font-medium">Source</th>
-                      <th className="text-left py-3 px-2 text-zinc-400 font-medium">Referred By</th>
-                      <th className="text-left py-3 px-2 text-zinc-400 font-medium">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredRegistrations.map((reg, index) => (
-                      <tr
-                        key={reg.id}
-                        className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors"
-                      >
-                        <td className="py-3 px-2 text-zinc-500">{index + 1}</td>
-                        <td className="py-3 px-2 text-white font-medium">{reg.fullName}</td>
-                        <td className="py-3 px-2 text-zinc-300">{reg.whatsappNumber}</td>
-                        <td className="py-3 px-2 text-zinc-400">
-                          {reg.email || <span className="text-zinc-600">—</span>}
-                        </td>
-                        <td className="py-3 px-2">
-                          {reg.source ? (
-                            <Badge variant="secondary">{reg.source}</Badge>
-                          ) : (
-                            <span className="text-zinc-600">—</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-2 text-zinc-400">
-                          {reg.referredBy ? (
-                            <Badge variant="outline">referred</Badge>
-                          ) : (
-                            <span className="text-zinc-600">—</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-2 text-zinc-400">
-                          {new Date(reg.createdAt).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </td>
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-zinc-800">
+                        <th className="text-left py-3 px-2 w-10">
+                          <input
+                            type="checkbox"
+                            checked={selected.size === currentPage.length && currentPage.length > 0}
+                            onChange={toggleSelectAll}
+                            className="rounded border-zinc-600 bg-zinc-800"
+                            aria-label="Select all on page"
+                          />
+                        </th>
+                        <th className="text-left py-3 px-2 text-zinc-400 font-medium">Name</th>
+                        <th className="text-left py-3 px-2 text-zinc-400 font-medium">WhatsApp</th>
+                        <th className="text-left py-3 px-2 text-zinc-400 font-medium">Email</th>
+                        <th className="text-left py-3 px-2 text-zinc-400 font-medium">Source</th>
+                        <th className="text-left py-3 px-2 text-zinc-400 font-medium">Referred By</th>
+                        <th className="text-left py-3 px-2 text-zinc-400 font-medium">Date</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {currentPage.map((reg) => (
+                        <tr
+                          key={reg.id}
+                          className={cn(
+                            "border-b border-zinc-800/50 transition-colors",
+                            selected.has(reg.id) ? "bg-blue-600/5" : "hover:bg-zinc-800/30"
+                          )}
+                        >
+                          <td className="py-3 px-2">
+                            <input
+                              type="checkbox"
+                              checked={selected.has(reg.id)}
+                              onChange={() => toggleSelect(reg.id)}
+                              className="rounded border-zinc-600 bg-zinc-800"
+                              aria-label={`Select ${reg.fullName}`}
+                            />
+                          </td>
+                          <td className="py-3 px-2 text-white font-medium">{reg.fullName}</td>
+                          <td className="py-3 px-2 text-zinc-300">{reg.whatsappNumber}</td>
+                          <td className="py-3 px-2 text-zinc-400">
+                            {reg.email || <span className="text-zinc-600">—</span>}
+                          </td>
+                          <td className="py-3 px-2">
+                            {reg.source ? (
+                              <Badge variant="secondary">{reg.source}</Badge>
+                            ) : (
+                              <span className="text-zinc-600">—</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-2 text-zinc-400">
+                            {reg.referredBy ? (
+                              <Badge variant="outline">referred</Badge>
+                            ) : (
+                              <span className="text-zinc-600">—</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-2 text-zinc-400">
+                            {new Date(reg.createdAt).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between pt-4 border-t border-zinc-800/50 mt-4">
+                    <p className="text-sm text-zinc-500">
+                      Page {page} of {totalPages} ({filteredRegistrations.length} total)
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={page <= 1}
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        aria-label="Previous page"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={page >= totalPages}
+                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        aria-label="Next page"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -340,6 +519,7 @@ function AdminLogin() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                autoComplete="email"
               />
             </div>
             <div className="space-y-2">
@@ -351,10 +531,11 @@ function AdminLogin() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                autoComplete="current-password"
               />
             </div>
             {error && (
-              <div className="p-3 rounded-lg bg-red-600/10 border border-red-600/20 text-red-400 text-sm">
+              <div className="p-3 rounded-lg bg-red-600/10 border border-red-600/20 text-red-400 text-sm" role="alert">
                 {error}
               </div>
             )}

@@ -15,7 +15,20 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 })
     }
 
+    const { searchParams } = new URL(request.url)
+    const startDate = searchParams.get("start")
+    const endDate = searchParams.get("end")
+
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
+
+    const dateFilter = startDate || endDate
+      ? {
+          createdAt: {
+            ...(startDate ? { gte: new Date(startDate) } : {}),
+            ...(endDate ? { lte: new Date(endDate + "T23:59:59.999Z") } : {}),
+          },
+        }
+      : undefined
 
     const [
       totalClicks,
@@ -29,9 +42,15 @@ export async function GET(request: Request) {
       topReferrers,
       funnelData,
     ] = await Promise.all([
-      prisma.click.count(),
-      prisma.registration.count(),
-      prisma.referral.count(),
+      dateFilter
+        ? prisma.click.count({ where: dateFilter })
+        : prisma.click.count(),
+      dateFilter
+        ? prisma.registration.count({ where: dateFilter })
+        : prisma.registration.count(),
+      dateFilter
+        ? prisma.referral.count({ where: dateFilter })
+        : prisma.referral.count(),
       prisma.liveUser.count({ where: { lastSeen: { gte: fiveMinutesAgo } } }),
       prisma.click.groupBy({ by: ["source"], _count: true, orderBy: { _count: { source: "desc" } } }),
       prisma.registration.groupBy({ by: ["source"], _count: true, orderBy: { _count: { source: "desc" } } }),
@@ -51,10 +70,10 @@ export async function GET(request: Request) {
         ORDER BY date ASC
       `,
       prisma.$queryRaw`
-        SELECT r.fullName, r."whatsappNumber", COUNT(*)::int as referrals
+        SELECT r."fullName", r."whatsappNumber", COUNT(*)::int as referrals
         FROM referrals rf
         JOIN registrations r ON r.id = rf."referrerId"
-        GROUP BY r.id, r.fullName, r."whatsappNumber"
+        GROUP BY r.id, r."fullName", r."whatsappNumber"
         ORDER BY referrals DESC
         LIMIT 10
       `,
@@ -97,7 +116,7 @@ export async function GET(request: Request) {
       recentActivity,
       dailyTrend,
       topReferrers,
-      funnel: funnelData[0] || {},
+      funnel: (funnelData as { totalClicks: number; totalRegistrations: number; totalReferrals: number; trackedRegistrations: number }[])[0] || {},
     })
   } catch (error) {
     console.error("Analytics error:", error)

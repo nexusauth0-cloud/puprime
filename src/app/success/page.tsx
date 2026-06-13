@@ -1,11 +1,11 @@
 "use client"
 
-import { Suspense, useState } from "react"
+import { Suspense, useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { CountdownTimer } from "@/components/CountdownTimer"
-import { CheckCircle, Share2, MessageCircle, ArrowLeft, Copy, Check } from "lucide-react"
+import { CheckCircle, Share2, MessageCircle, ArrowLeft, Copy, Check, Sparkles } from "lucide-react"
 import Link from "next/link"
 
 function SuccessContent() {
@@ -16,9 +16,22 @@ function SuccessContent() {
 
   const siteUrl = typeof window !== "undefined"
     ? window.location.origin
-    : "https://market-edu-a302.onrender.com"
+    : ""
 
   const referralLink = refCode ? `${siteUrl}/?ref=${refCode}` : siteUrl
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && refCode) {
+      import("canvas-confetti").then((c) => {
+        c.default({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ["#2563EB", "#10B981", "#F59E0B"],
+        })
+      }).catch(() => {})
+    }
+  }, [refCode])
 
   function handleCopyReferral() {
     navigator.clipboard.writeText(
@@ -72,6 +85,7 @@ function SuccessContent() {
                   size="icon"
                   onClick={handleCopyReferral}
                   className="shrink-0"
+                  aria-label="Copy referral link"
                 >
                   {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
                 </Button>

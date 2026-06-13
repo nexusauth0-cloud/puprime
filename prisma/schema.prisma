@@ -16,14 +16,23 @@ model Click {
   @@map("clicks")
 }
 
+enum RegistrationStatus {
+  registered
+  attended
+  cancelled
+  no_show
+}
+
 model Registration {
-  id              String   @id @default(cuid())
+  id              String               @id @default(cuid())
   fullName        String
-  whatsappNumber  String   @unique
+  whatsappNumber  String               @unique
   email           String?
   source          String?
   referredBy      String?
-  createdAt       DateTime @default(now())
+  status          RegistrationStatus   @default(registered)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
   @@map("registrations")
 }
 

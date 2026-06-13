@@ -1,9 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { cn } from "@/lib/utils"
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line,
@@ -19,6 +21,7 @@ import {
   Activity,
   Share2,
   Radio,
+  RefreshCw,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -48,27 +51,58 @@ interface Analytics {
   }
 }
 
+function Skeleton({ className }: { className?: string }) {
+  return <div className={cn("animate-pulse rounded-md bg-zinc-800/50", className)} />
+}
+
+function SkeletonOverviewCards() {
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <Card key={i}>
+          <CardContent className="p-3 md:p-4">
+            <Skeleton className="h-3 w-16 mb-2" />
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-7 w-12" />
+              <Skeleton className="h-8 w-8 rounded-lg" />
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  )
+}
+
 function AdminAnalytics() {
   const [data, setData] = useState<Analytics | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [dateRange, setDateRange] = useState<{ start?: string; end?: string }>({})
+  const intervalRef = useRef<ReturnType<typeof setInterval>>()
 
   useEffect(() => {
     fetchAnalytics()
-    const interval = setInterval(fetchAnalytics, 30000)
-    return () => clearInterval(interval)
-  }, [])
+    intervalRef.current = setInterval(fetchAnalytics, 30000)
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [dateRange])
 
   async function fetchAnalytics() {
     try {
       const token = localStorage.getItem("admin_token")
-      const res = await fetch("/api/analytics", {
+      const params = new URLSearchParams()
+      if (dateRange.start) params.set("start", dateRange.start)
+      if (dateRange.end) params.set("end", dateRange.end)
+      const res = await fetch(`/api/analytics?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (res.ok) {
         setData(await res.json())
+        setError("")
+      } else {
+        setError("Failed to load analytics")
       }
-    } catch (err) {
-      console.error(err)
+    } catch {
+      setError("Network error")
     } finally {
       setLoading(false)
     }
@@ -81,8 +115,41 @@ function AdminAnalytics() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0B1220] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
+      <div className="min-h-screen bg-[#0B1220]">
+        <nav className="border-b border-zinc-800/50 bg-zinc-900/30 backdrop-blur-xl">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <Skeleton className="h-6 w-48" />
+            <div className="flex gap-3">
+              <Skeleton className="h-9 w-24" />
+              <Skeleton className="h-9 w-20" />
+            </div>
+          </div>
+        </nav>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+          <SkeletonOverviewCards />
+          <Card><CardContent className="p-8"><Skeleton className="h-40 w-full" /></CardContent></Card>
+          <div className="grid lg:grid-cols-2 gap-6">
+            <Card><CardContent className="p-8"><Skeleton className="h-60 w-full" /></CardContent></Card>
+            <Card><CardContent className="p-8"><Skeleton className="h-60 w-full" /></CardContent></Card>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  if (error && !data) {
+    return (
+      <div className="min-h-screen bg-[#0B1220] flex items-center justify-center p-4">
+        <Card className="max-w-sm w-full">
+          <CardContent className="p-8 text-center space-y-4">
+            <BarChart3 className="w-12 h-12 text-red-400 mx-auto" />
+            <p className="text-zinc-300">{error}</p>
+            <Button onClick={fetchAnalytics} className="gap-2">
+              <RefreshCw className="w-4 h-4" />
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -92,7 +159,7 @@ function AdminAnalytics() {
       <div className="min-h-screen bg-[#0B1220] flex items-center justify-center">
         <Card>
           <CardContent className="p-8 text-center">
-            <p className="text-zinc-400">Failed to load analytics. Make sure you're logged in.</p>
+            <p className="text-zinc-400">Failed to load analytics. Make sure you&apos;re logged in.</p>
             <Button className="mt-4" asChild>
               <Link href="/admin">Go to Admin Login</Link>
             </Button>
@@ -119,6 +186,7 @@ function AdminAnalytics() {
           <div className="flex items-center gap-3">
             <BarChart3 className="w-5 h-5 text-blue-400" />
             <span className="text-lg font-semibold text-white">Marketing Analytics</span>
+            <span className="text-xs text-zinc-500 ml-2">auto-refreshes every 30s</span>
           </div>
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" asChild>
@@ -236,7 +304,7 @@ function AdminAnalytics() {
                       data={regPieData.length > 0 ? regPieData : [{ name: "No data", value: 1 }]}
                       cx="50%" cy="50%" outerRadius={80}
                       dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
                     >
                       {regPieData.map((_, i) => (<Cell key={i} fill={COLORS[i % COLORS.length]} />))}
                     </Pie>
@@ -250,8 +318,25 @@ function AdminAnalytics() {
 
         {/* Daily Traffic */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-white text-lg">Daily Traffic (14 days)</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-white text-lg">Daily Traffic</CardTitle>
+            <div className="flex gap-2 items-center">
+              <Input
+                type="date"
+                className="w-36 h-9 text-xs"
+                value={dateRange.start || ""}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDateRange((p) => ({ ...p, start: e.target.value }))}
+                aria-label="Start date"
+              />
+              <span className="text-zinc-500 text-xs">to</span>
+              <Input
+                type="date"
+                className="w-36 h-9 text-xs"
+                value={dateRange.end || ""}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDateRange((p) => ({ ...p, end: e.target.value }))}
+                aria-label="End date"
+              />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="h-72">

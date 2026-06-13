@@ -18,9 +18,8 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://market-edu-a302.onrender.com"
-const WHATSAPP_GROUP = process.env.NEXT_PUBLIC_WHATSAPP_LINK || "https://chat.whatsapp.com/example"
-const SHARE_LINK = SITE_URL
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || ""
+const WHATSAPP_GROUP = process.env.NEXT_PUBLIC_WHATSAPP_LINK || ""
 
 const stats = [
   { value: "1,000+", label: "Registered", icon: Users },
@@ -72,6 +71,38 @@ const speakers = [
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#0B1220]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Event",
+            name: "Market Education Session",
+            description:
+              "Learn real strategies from active experts on Zoom. Join thousands of traders who have transformed their approach to the markets.",
+            startDate: process.env.NEXT_PUBLIC_EVENT_DATE,
+            eventStatus: "https://schema.org/EventScheduled",
+            eventAttendanceMode: "https://schema.org/OnlineEventAttendanceMode",
+            location: {
+              "@type": "VirtualLocation",
+              url: "https://zoom.us",
+            },
+            offers: {
+              "@type": "Offer",
+              price: "0",
+              priceCurrency: "USD",
+              availability: "https://schema.org/InStock",
+            },
+          }),
+        }}
+      />
+      {/* Skip to content */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[60] focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-lg focus:outline-none"
+      >
+        Skip to main content
+      </a>
       {/* Nav */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0B1220]/80 backdrop-blur-xl border-b border-zinc-800/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -90,7 +121,7 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero */}
-      <section className="relative pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden">
+      <section id="main-content" className="relative pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-blue-600/10 via-transparent to-transparent" />
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-blue-500/5 rounded-full blur-3xl" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">

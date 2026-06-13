@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://market-edu-a302.onrender.com"
-const WHATSAPP_GROUP = process.env.NEXT_PUBLIC_WHATSAPP_LINK || "https://chat.whatsapp.com/example"
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL
+const WHATSAPP_GROUP = process.env.NEXT_PUBLIC_WHATSAPP_LINK
+
+if (!SITE_URL) throw new Error("NEXT_PUBLIC_SITE_URL environment variable is required")
+if (!WHATSAPP_GROUP) throw new Error("NEXT_PUBLIC_WHATSAPP_LINK environment variable is required")
 
 const SOURCE_REDIRECTS: Record<string, string> = {
   whatsapp: WHATSAPP_GROUP,
