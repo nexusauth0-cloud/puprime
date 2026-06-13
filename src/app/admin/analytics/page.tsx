@@ -19,7 +19,6 @@ import {
   Activity,
   Share2,
   Radio,
-  Funnel,
 } from "lucide-react"
 import Link from "next/link"
 
